@@ -98,6 +98,8 @@ async def actualizar_usuario(id: int, datos: dict):
 
 @app.delete("/v1/usuarios/{id}", tags=["CRUD HTTP"])
 async def eliminar_usuario(id: int):
+
+
     for i, usuario in enumerate(usuarios):
         if int(usuario["id"]) == id:
             usuarios.pop(i)
@@ -109,3 +111,8 @@ async def eliminar_usuario(id: int):
         status_code=404,
         detail="Usuario no encontrado"
     )
+
+
+@app.get("/v1/usuarios/{id}", tags=["CRUD HTTP"])
+async def consultar_usuario(id:int):
+    
