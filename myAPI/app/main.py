@@ -1,48 +1,71 @@
-#1. Importaciones
-from fastapi import FastAPI,status,HTTPException
+# Importacion fastapi, status, HTTPException, Depends
+from fastapi import FastAPI, status, HTTPException, Depends
 from typing import Optional
 import asyncio
+from pydantic import BaseModel, Field
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+import secrets
 
-#2.Inicialización APP
+
+# Inicialización de APP
 app= FastAPI(
-            title=" Mi primer API", 
-             description= "Leonardo Estrada Lobera",
-             version= "1.0.0"
-             )
-#BD Ficticia 
-usuarios = [
-    {"id": "1", "nombre" : "Leo", "edad":"20"},
-    {"id": "2", "nombre" : "Danna", "edad":"18"},
-    {"id": "3", "nombre" : "Santiago", "edad":"25"},
-    {"id": "4", "nombre" : "Daniel", "edad":"24"},
-    {"id": "5", "nombre" : "Danna", "edad":"18"},
-    {"id": "6", "nombre" : "Paula", "edad":"25"},
+    title='Mi Primer API',
+    description="Leonardo Estrada",
+    version='1.0.0'
+)
+
+# BD ficticia
+usuarios=[
+    {"id":1,"nombre":"Andrés","edad":"21"},
+    {"id":2,"nombre":"Rafael","edad":"22"},
+    {"id":3,"nombre":"Leonardo","edad":"20"},
 ]
 
-#3.Endpoints
-@app.get("/", tags= ["Inicio"])
-async def holaMundo():
-    return{"mensaje" : "Hola mundo FastAPI"}
 
-@app.get("/bienvenidos", tags= ["Inicio"])
+# Modelo Pydantic, creación del modelo
+class crear_usuario(BaseModel):
+    id: int = Field(..., gt=0, description="Identificador de usuario") # Validaciones personalizadas
+    nombre: str = Field(..., min_length=3, max_length=50, example="Juanita")
+    edad: int = Field(..., ge=1, le=123, description="Edad válida entre 1 y 123")
+
+
+@app.get("/", tags=['Inicio']) 
+async def holaMundo():
+    return  {"mensaje":"Hola mundo FASTAPI"}
+
+# Seguridad HTTP BASIC
+seguridad = HTTPBasic()
+
+def verificar_peticion(credenciales:HTTPBasicCredentials=Depends(seguridad)):
+    userAuth = secrets.compare_digest(credenciales.username, "andrescastillo")
+    passAuth = secrets.compare_digest(credenciales.password, "123456")
+
+    if not(userAuth and passAuth):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            deefault="Credenciales no autorizadas"
+        )
+
+
+@app.get("/bienvenida", tags=['Inicio'])
 async def bien():
     return {"mensaje":"Bienvenidos"}
 
-@app.get("/v1/promedio", tags=["Calificaciones"])
+@app.get("/v1/promedio", tags=['Calificaciones'])
 async def promedio():
-    await asyncio.sleep(3)#simulación petición a otra API, consulta a BD...
-    return {
-        "Calificación" : "10",
-        "Estatus":"200"
+    await asyncio.sleep(3) 
+    return {"Calificacion":"9",
+            "Estatus":"200"
             }
 
-@app.get("/v1/usuario/{id}", tags= ["Parametros"])
+@app.get("/v1/usuarioO/{id}", tags=['Parámetros']) 
 async def consultaUno(id:int):
     await asyncio.sleep(3)
-    return {
-        "Resultado" : "usuario encontrado",
-        "Estatus":"200"
+    return {"Resultado":"Usuario encontrado",
+            "Estatus":"200"
             }
+
+
 
 @app.get("/v1/usuarios_op/", tags=['Parámetro Opcional']) # Endpoint con parámetro opcional
 async def consultaOp(id:Optional[int]=None):
@@ -54,65 +77,65 @@ async def consultaOp(id:Optional[int]=None):
         return{"Mensaje":"Usuario no encontrado"}
     else:
         return {"Aviso":"No se proporcionó ID"}
-
-
-@app.get("/v1/usuario/", tags= ["CRUD HTTP"])
-async def consultaUno():
+    
+#Endpoint CRUD GET
+@app.get("/v1/usuarios/", tags=['CRUD HTTP']) 
+async def consultaT():
     return{
         "status":"200",
         "total": len(usuarios),
-        "data":usuarios
-
+        "data": usuarios
     }
 
-@app.post("/v1usuarios/", tags=["CRUD HTTP"])
-async def crea_usuario(usuario:dict):
+#Endpoint CRUD POST
+@app.post("/v1/usuarios/", tags=['CRUD HTTP'], status_code=status.HTTP_201_CREATED) 
+async def crearUsuario(usuario:crear_usuario): # Uso del modelo
     for usr in usuarios:
-        if usr["id"] == usuario.get("id"):
+        if usr["id"] == usuario.id:
             raise HTTPException(
                 status_code=400,
-                detail="El id ya existe"
+                detail="El ID ya existe"
             )
     usuarios.append(usuario)
     return{
-        "mensaje": "usuario agregado correctamente",
-        "status": "200",
-        "usuario": usuario
-    }    
+        "mensaje":"Usuario agregado correctamente",
+        "status":"200",
+        "usuario":usuarioz
+    }
 
-@app.put("/v1/usuarios/{id}", tags=["CRUD HTTP"])
-async def actualizar_usuario(id: int, datos: dict):
-    for usuario in usuarios:
-        if usuario["id"] == str(id):  
-            usuario.update(datos)
+
+#Endpoint CRUD PUT
+@app.put("/v1/usuarios/{id}", tags=['CRUD HTTP']) 
+async def actualizarUsuario(id: str, usuario_actualizado: dict):
+    # Buscamos el usuario por su ID
+    for index, usr in enumerate(usuarios):
+        if usr["id"] == id:
+            # Reemplazamos los datos del usuario en esa posición
+            usuarios[index] = usuario_actualizado
             return {
-                "mensaje": "Usuario actualizado",
-                "usuario": usuario
+                "mensaje":"Usuario actualizado correctamente",
+                "datos":usuarios[index]
             }
-
-    raise HTTPException(
-        status_code=404,
-        detail="Usuario no encontrado"
-    )
-
-
-@app.delete("/v1/usuarios/{id}", tags=["CRUD HTTP"])
-async def eliminar_usuario(id: int):
-
-
-    for i, usuario in enumerate(usuarios):
-        if int(usuario["id"]) == id:
-            usuarios.pop(i)
-            return {
-                "mensaje": "Usuario eliminado correctamente"
-            }
-
-    raise HTTPException(
-        status_code=404,
-        detail="Usuario no encontrado"
-    )
-
-
-@app.get("/v1/usuarios/{id}", tags=["CRUD HTTP"])
-async def consultar_usuario(id:int):
     
+    # En caso de no encontrar al usuario, lanzamos un error
+    raise HTTPException(
+        status_code=400,
+        detail="Usuario no encontrado"
+    )
+
+#Endpoint CRUD DELETE
+@app.delete("/v1/usuarios/{id}", tags=['CRUD HTTP']) 
+async def eliminarUsuario(id: int, userAuth:str=Depends(verificar_peticion)):
+    # Buscamos el usuario en la lista
+    for usr in usuarios:
+        if usr["id"] == id:
+            usuarios.remove(usr)
+            return {
+                "mensaje": f"Usuario eliminado por {userAuth}"
+            }
+    
+    # Si no lo encuentra manda error
+    raise HTTPException(
+        status_code=404,
+        detail="No se encontró el usuario para eliminar"
+    )
