@@ -5,25 +5,19 @@ import secrets
 
 
 app= FastAPI(
-            title=" Mi primer API", 
+            title="Examen 2do Parcial", 
              description= "Leonardo Estrada Lobera",
              version= "1.0.0"
              )
 
-#BD Ficticia
-reservas = [
-    {"id": 1, "nombre": "Juan Perez", "fecha_entrada": "2024-07-01", "edad": 30, "estado": "pendiente"},
-    {"id": 2, "nombre": "Maria Gomez", "fecha_entrada": "2024-07-05", "edad": 25, "estado": "confirmada"},
-    {"id": 3, "nombre": "Carlos Sanchez", "fecha_entrada": "2024-07-10", "edad": 40, "estado": "cancelada"}
-]
-
-
+reservas = []
 
 class Huespedes(BaseModel):
     nombre: str = Field(..., min_length=5, max_length=50)
-    fecha_entrada: str = Field(..., description="Fecha de entrada no menor a fecha actual")
-    edad: int = Field(..., ge=1, le=123, description="Edad válida entre 1 y 123")
-
+    fecha_entrada: str = Field(..., description="Fecha de entrada no menor que fecha actual")
+    fecha_salida: str = Field(..., description="Fecha de salida no mayor que fecha de entrada")
+    tipo_habitacion: str = Field(..., description="Tipo de habitación: sencilla, doble o suite")
+    estancia: int = Field(..., ge=1, le=7, description="Estancia válida entre 1 y 7 días")
 
 seguridad = HTTPBasic()
 
@@ -42,8 +36,9 @@ def verificar_peticion(credenciales:HTTPBasicCredentials=Depends(seguridad)):
 async def crear_reserva(huesped: Huespedes, credenciales: HTTPBasicCredentials = Depends(verificar_peticion)):
     return{
         "status":"200",
-        "message":f"Reserva creada exitosamente para {huesped.nombre} de {huesped.edad} años"
+        "message":f"Reserva creada exitosamente para {huesped.nombre}"
     }
+
 
 @app.get("/v1/usuario/", tags= ["Sistema de reserva"])
 async def listar_reservas(credenciales: HTTPBasicCredentials = Depends(verificar_peticion)):
